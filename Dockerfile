@@ -10,7 +10,6 @@ RUN apt-get update \
 		libyaml-dev \
 		procps \
 		zlib1g-dev \
-        libjemalloc1 \
         libjemalloc-dev \        
 	&& rm -rf /var/lib/apt/lists/*
 
