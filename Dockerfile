@@ -1,4 +1,4 @@
-FROM debian:stretch
+FROM debian:stretch-slim
 
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
@@ -10,7 +10,7 @@ RUN apt-get update \
 		libyaml-dev \
 		procps \
 		zlib1g-dev \
-        libjemalloc-dev \        
+		libjemalloc-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 # skip installing gem documentation
@@ -20,11 +20,9 @@ RUN mkdir -p /usr/local/etc \
 		echo 'update: --no-document'; \
 	} >> /usr/local/etc/gemrc
 
-ENV RUBY_MAJOR 2.5
-ENV RUBY_VERSION 2.5.3
-ENV RUBY_DOWNLOAD_SHA256 1cc9d0359a8ea35fc6111ec830d12e60168f3b9b305a3c2578357d360fcf306f
-ENV RUBYGEMS_VERSION 2.7.8
-ENV BUNDLER_VERSION 1.17.1
+ENV RUBY_MAJOR 2.6
+ENV RUBY_VERSION 2.6.1
+ENV RUBY_DOWNLOAD_SHA256 47b629808e9fd44ce1f760cdf3ed14875fc9b19d4f334e82e2cf25cb2898f2f2
 
 # some of ruby's build scripts are written in ruby
 #   we purge system ruby later to make sure our final image uses what we just built
@@ -75,7 +73,7 @@ RUN set -ex \
 		--build="$gnuArch" \
 		--disable-install-doc \
 		--enable-shared \
-        --with-jemalloc \
+		--with-jemalloc \
 	&& make -j "$(nproc)" \
 	&& make install \
 	\
@@ -85,20 +83,19 @@ RUN set -ex \
 	&& apt-get purge -y --auto-remove $buildDeps \
 	&& cd / \
 	&& rm -r /usr/src/ruby \
-	\
-	&& gem update --system "$RUBYGEMS_VERSION" \
-	&& gem install bundler --version "$BUNDLER_VERSION" --force \
-	&& rm -r /root/.gem/
+# rough smoke test
+	&& ruby --version && gem --version && bundle --version
 
 # install things globally, for great justice
 # and don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle
 ENV BUNDLE_PATH="$GEM_HOME" \
-	BUNDLE_BIN="$GEM_HOME/bin" \
 	BUNDLE_SILENCE_ROOT_WARNING=1 \
 	BUNDLE_APP_CONFIG="$GEM_HOME"
-ENV PATH $BUNDLE_BIN:$PATH
-RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
-	&& chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
+# path recommendation: https://github.com/bundler/bundler/pull/6469#issuecomment-383235438
+ENV PATH $GEM_HOME/bin:$BUNDLE_PATH/gems/bin:$PATH
+# adjust permissions of a few directories for running "gem install" as an arbitrary user
+RUN mkdir -p "$GEM_HOME" && chmod 777 "$GEM_HOME"
+# (BUNDLE_PATH = GEM_HOME, no need to mkdir/chown both)
 
 CMD [ "irb" ]
